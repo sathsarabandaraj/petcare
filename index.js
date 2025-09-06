@@ -312,6 +312,66 @@ app.post('/api/pet-data', async (req,res)=>{
   }
 });
 
+app.post('/api/pet-vitals-location', async (req, res) => {
+  const { bpm, latitude, longitude, altitude } = req.body;
+
+  if (bpm == null || latitude == null || longitude == null || altitude == null) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+    // Save heart rate
+    await pool.query(
+      `INSERT INTO pet_heart_rate (bpm, status, timestamp)
+       VALUES ($1, $2, NOW())`,
+      [bpm, bpm > 120 ? 'high' : bpm < 60 ? 'low' : 'normal']
+    );
+
+    // Save location
+    await pool.query(
+      `INSERT INTO pet_roaming_path (latitude, longitude, altitude, timestamp)
+       VALUES ($1, $2, $3, NOW())`,
+      [latitude, longitude, altitude]
+    );
+
+    res.status(201).json({ message: 'Vitals and location stored successfully' });
+  } catch (err) {
+    console.error('DB Error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+
+app.post('/api/pet-food-water', async (req, res) => {
+  const { food_weight, adcValue, percent, status } = req.body;
+
+  if (food_weight == null || adcValue == null || percent == null || !status) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+    // Save food weight
+    await pool.query(
+      `INSERT INTO pet_food_cup (weight_grams, status, timestamp)
+       VALUES ($1, $2, NOW())`,
+      [food_weight, food_weight >= 700 ? 'full' : food_weight >= 400 ? 'half' : food_weight >= 100 ? 'low' : 'empty']
+    );
+
+    // Save water level
+    await pool.query(
+      `INSERT INTO pet_water_level (adc_value, percent, status, timestamp)
+       VALUES ($1, $2, $3, NOW())`,
+      [adcValue, percent, status]
+    );
+
+    res.status(201).json({ message: 'Food and water stored successfully' });
+  } catch (err) {
+    console.error('DB Error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+
 /**
  * ================================
  * 🚀 SERVER START
